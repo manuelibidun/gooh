@@ -21,57 +21,40 @@ var filename string
 var timeLimit int
 var shuffleState bool
 
-func init() {
-	const (
-		defaultInputFile    = "problems.csv"
-		defaultTimeLimit    = 30
-		defaultShuffleState = true
-	)
-
-	flag.StringVar(&filename,
-		"filename",
-		defaultInputFile,
-		"Input file",
-	)
-	flag.StringVar(&filename,
-		"f",
-		defaultInputFile,
-		"Input file",
-	)
-	flag.IntVar(&timeLimit,
-		"timeLimit",
-		defaultTimeLimit,
-		"Time limit",
-	)
-	flag.IntVar(&timeLimit,
-		"t",
-		defaultTimeLimit,
-		"Time limit",
-	)
-	flag.BoolVar(&shuffleState,
-		"shuffle",
-		defaultShuffleState,
-		"Shuffle question (T/F)?",
-	)
-	flag.BoolVar(&shuffleState,
-		"s",
-		defaultShuffleState,
-		"Shuffle question (T/F)?",
-	)
-}
 func main() {
 	flag.Parse()
+
 	quizset := loadQuizFromFile(filename, shuffleState)
-	var response string
-	var correct int
-	for _, q := range quizset {
-		fmt.Printf("Solve: `%s ", q.Question+"` (or `q` to quit) ?")
-		fmt.Scanf("%s", &response)
-		if response == "q" {
-			break
-		}
-		if q.Answer == response {
-			correct += 1
+
+	timer := time.NewTimer(time.Duration(timeLimit) * time.Second)
+
+	var correct int = 0
+
+quizloop:
+	for i, q := range quizset {
+		fmt.Printf("[%d]: ", i+1)
+		fmt.Printf("Solve `%s ", q.Question+"` (or `q` to quit) ?")
+
+		responseCh := make(chan string)
+		go func() {
+			var response string
+			fmt.Scanf("%s", &response)
+			responseCh <- response
+
+		}()
+
+		select {
+		case <-timer.C:
+			fmt.Println("\n**** Sorry, you ran out of time ****")
+			break quizloop
+		case response := <-responseCh:
+			if response == "q" {
+				fmt.Println("Ooopsie! You terminated the quiz.")
+				break quizloop
+			}
+			if q.Answer == response {
+				correct += 1
+			}
 		}
 	}
 	fmt.Printf("You scored %d out of %d\n", correct, len(quizset))
@@ -118,4 +101,43 @@ func shuffleQuizSet(quizset QuizSet) QuizSet {
 		quizset[i], quizset[k] = quizset[k], quizset[i]
 	}
 	return quizset
+}
+
+func init() {
+	const (
+		defaultInputFile    = "problems.csv"
+		defaultTimeLimit    = 30
+		defaultShuffleState = true
+	)
+
+	flag.StringVar(&filename,
+		"file",
+		defaultInputFile,
+		"Input file",
+	)
+	flag.StringVar(&filename,
+		"f",
+		defaultInputFile,
+		"Input file",
+	)
+	flag.IntVar(&timeLimit,
+		"limit",
+		defaultTimeLimit,
+		"Time limit",
+	)
+	flag.IntVar(&timeLimit,
+		"t",
+		defaultTimeLimit,
+		"Time limit",
+	)
+	flag.BoolVar(&shuffleState,
+		"shuffle",
+		defaultShuffleState,
+		"Shuffle question (T/F)?",
+	)
+	flag.BoolVar(&shuffleState,
+		"s",
+		defaultShuffleState,
+		"Shuffle question (T/F)?",
+	)
 }
